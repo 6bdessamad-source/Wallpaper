@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Cutting Mat Pro Studio Wallpaper Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .serif-text { font-family: 'Instrument Serif', serif; }
+        .mono-text { font-family: 'JetBrains Mono', monospace; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+        input[type="file"]::file-selector-button {
+            border: 1px solid #475569; padding: 0.5rem 1rem; border-radius: 0.5rem;
+            background-color: #1e293b; color: #f1f5f9; font-weight: 500; font-size: 0.75rem;
+            cursor: pointer; transition: background-color 0.15s;
+        }
+        input[type="file"]::file-selector-button:hover { background-color: #334155; }
+
+        .tab-btn {
+            flex: 1; padding: 0.5rem 0.25rem; font-size: 0.7rem; font-weight: 600;
+            letter-spacing: 0.03em; text-transform: uppercase; color: #64748b;
+            border-bottom: 2px solid transparent; transition: all 0.15s; cursor: pointer;
+        }
+        .tab-btn:hover { color: #cbd5e1; }
+        .tab-btn.active { color: #34d399; border-bottom-color: #34d399; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; animation: fadeIn 0.18s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: translateY(0); } }
+
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.4rem 0; }
+
+        .swatch-btn {
+            aspect-ratio: 1; border-radius: 0.5rem; border: 1px solid #334155;
+            cursor: pointer; transition: transform 0.1s, border-color 0.15s; position: relative;
+        }
+        .swatch-btn:hover { transform: scale(1.06); border-color: #34d399; }
+        .swatch-btn.selected { border-color: #34d399; box-shadow: 0 0 0 1.5px #34d399; }
+
+        .toast {
+            position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(10px);
+            opacity: 0; pointer-events: none; transition: all 0.25s ease; z-index: 50; max-width: 90vw; text-align: center;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        .section-label {
+            font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+            color: #34d399; margin-top: 0.75rem; margin-bottom: 0.35rem; display: flex; align-items: center; gap: 6px;
+        }
+        .section-label::after { content: ''; flex: 1; height: 1px; background: #1e293b; }
+
+        .corner-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; width: 92px; }
+        .corner-btn {
+            font-size: 9px; font-weight: 600; padding: 6px 0; border-radius: 4px;
+            border: 1px solid #334155; background: #0f172a; color: #64748b; cursor: pointer; transition: all 0.12s;
+        }
+        .corner-btn.active { border-color: #34d399; color: #34d399; background: #0b3b30; }
+        .corner-picker-wrap.hidden { display: none; }
+
+        .hex-input {
+            width: 100%; background: #0f172a; border: 1px solid #334155; border-radius: 0.375rem;
+            padding: 0.35rem 0.5rem; font-size: 13px; color: #cbd5e1; text-transform: uppercase;
+        }
+
+        .live-pill {
+            display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 600;
+            padding: 3px 8px; border-radius: 999px; border: 1px solid #334155; color: #64748b;
+        }
+        .live-pill.on { color: #34d399; border-color: #14532d; }
+        .live-pill .dot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+        .live-pill.on .dot { animation: pulse 1.4s infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+        #btnUpdatePreview { display: none; }
+        #btnUpdatePreview.dirty { display: flex; animation: pulseBtn 1.2s infinite; }
+        @keyframes pulseBtn { 0%,100% { box-shadow: 0 0 0 0 rgba(52,211,153,0.5); } 50% { box-shadow: 0 0 0 5px rgba(52,211,153,0); } }
+
+        .icon-btn {
+            width: 2rem; height: 2rem; display: flex; align-items: center; justify-content: center;
+            border-radius: 0.5rem; background: #1e293b; border: 1px solid #334155; color: #cbd5e1;
+            cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+        }
+        .icon-btn:hover { border-color: #34d399; color: #34d399; }
+
+        /* --- Mobile-first responsive layout: preview stays visible without scrolling --- */
+        #previewWrap { order: 1; height: 40vh; flex-shrink: 0; }
+        #sidebarPanel { order: 2; height: 60vh; }
+        @media (min-width: 768px) {
+            #previewWrap { order: 2; height: auto; flex: 1 1 auto; }
+            #sidebarPanel { order: 1; height: 100%; width: 400px; }
+        }
+        #sidebarPanel.mat-collapsed .tab-nav-row,
+        #sidebarPanel.mat-collapsed .panel-scroll { display: none; }
+        #sidebarPanel.mat-collapsed { height: auto !important; }
+        #sidebarPanel.mat-collapsed ~ #previewWrap { height: 74vh !important; }
+
+        /* Prevent iOS Safari auto-zoom on focus by keeping typed inputs at >=16px on small screens */
+        @media (max-width: 767px) {
+            textarea, input[type="text"], select#presetSelect { font-size: 16px !important; }
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col md:flex-row overflow-hidden">
+
+    <div id="sidebarPanel" class="w-full bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 z-10 overflow-hidden">
+
+        <div class="p-4 md:p-6 pb-3 md:pb-4">
+            <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                    <h1 class="text-lg md:text-xl font-semibold tracking-tight text-white flex items-center gap-2">
+                        <svg class="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+                        <span class="truncate">Cutting Mat Pro Studio</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 mt-1">Generate high-res professional wallpapers</p>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    <button id="btnSavePreset" title="Save preset as JSON" class="icon-btn">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    </button>
+                    <button id="btnLoadPreset" title="Load preset from JSON" class="icon-btn">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M12 12v9m0-9l-3 3m3-3l3 3"></path></svg>
+                    </button>
+                    <input type="file" id="loadPresetInput" accept="application/json" class="hidden">
+                    <button id="btnRandomize" title="Randomize design" class="icon-btn">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    </button>
+                    <button id="btnReset" title="Reset to defaults" class="icon-btn hover:!border-rose-500 hover:!text-rose-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 mt-3">
+                <div class="flex-1 flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2">
+                    <label for="livePreviewToggle" class="text-xs text-slate-300 cursor-pointer">Live preview</label>
+                    <div class="flex items-center gap-2">
+                        <span id="livePill" class="live-pill on"><span class="dot"></span>Live</span>
+                        <input type="checkbox" id="livePreviewToggle" checked class="rounded bg-slate-700 border-slate-600 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                </div>
+                <button id="btnMaximize" class="md:hidden text-[10px] font-semibold uppercase tracking-wide bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-2 text-slate-300 whitespace-nowrap">
+                    Maximize
+                </button>
+            </div>
+        </div>
+
+        <div class="tab-nav-row flex border-y border-slate-800 px-2">
+            <button class="tab-btn active" data-tab="tabGrid">Grid</button>
+            <button class="tab-btn" data-tab="tabColor">Color</button>
+            <button class="tab-btn" data-tab="tabText">Text</button>
+            <button class="tab-btn" data-tab="tabTexture">Texture</button>
+        </div>
+
+        <div class="panel-scroll flex-1 overflow-y-auto px-4 md:px-6 py-4 md:py-5">
+
+            <!-- TAB: GRID -->
+            <div id="tabGrid" class="tab-panel active space-y-5">
+
+                <fieldset>
+                    <legend class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Canvas Dimensions</legend>
+                    <select id="presetSelect" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+                        <optgroup label="Desktop">
+                            <option value="3840x2160">4K UHD (3840 × 2160)</option>
+                            <option value="2560x1440" selected>2K QHD (2560 × 1440)</option>
+                            <option value="1920x1080">1080p FHD (1920 × 1080)</option>
+                        </optgroup>
+                        <optgroup label="iPhone">
+                            <option value="1170x2532">iPhone 13 Pro (1170 × 2532)</option>
+                            <option value="1284x2778">iPhone 13 Pro Max (1284 × 2778)</option>
+                            <option value="1179x2556">iPhone 14 Pro (1179 × 2556)</option>
+                            <option value="1290x2796">iPhone 14 Pro Max (1290 × 2796)</option>
+                        </optgroup>
+                        <optgroup label="Android">
+                            <option value="1440x3088">Samsung S23 Ultra (1440 × 3088)</option>
+                            <option value="1080x2340">Samsung S23 / S23+ (1080 × 2340)</option>
+                        </optgroup>
+                        <optgroup label="iPad">
+                            <option value="1640x2360">iPad Air (1640 × 2360)</option>
+                            <option value="2048x2732">iPad Pro 12.9" (2048 × 2732)</option>
+                        </optgroup>
+                    </select>
+                </fieldset>
+
+                <fieldset class="space-y-3">
+                    <legend class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Mat Pattern</legend>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="styleGrid" class="py-2 px-3 text-sm rounded-lg border bg-slate-800 border-emerald-500 text-white font-medium">Classic Grid</button>
+                        <button id="stylePlus" class="py-2 px-3 text-sm rounded-lg border bg-slate-800 border-slate-700 text-slate-400 font-medium hover:border-slate-600">Plus Pattern</button>
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[11px] text-slate-400 font-medium">Grid Scale (Density)</span>
+                            <span id="gridScaleVal" class="text-xs mono-text text-slate-400">100%</span>
+                        </div>
+                        <input type="range" id="gridScaleRange" min="50" max="250" value="100" step="10" class="w-full accent-emerald-500 bg-slate-700 h-1 rounded-full appearance-none cursor-pointer">
+                    </div>
+                </fieldset>
+
+                <fieldset class="space-y-3">
+                    <legend class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Line Weight (per element type)</legend>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[11px] text-slate-400 font-medium">Grid / Pattern Lines</span>
+                            <span id="gridWeightVal" class="text-xs mono-text text-slate-400">100%</span>
+                        </div>
+                        <input type="range" id="gridWeightRange" min="50" max="300" value="100" step="10" class="w-full accent-emerald-500 bg-slate-700 h-1 rounded-full appearance-none cursor-pointer">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[11px] text-slate-400 font-medium">Border & Boundary</span>
+                            <span id="borderWeightVal" class="text-xs mono-text text-slate-400">100%</span>
+                        </div>
+                        <input type="range" id="borderWeightRange" min="50" max="300" value="100" step="10" class="w-full accent-emerald-500 bg-slate-700 h-1 rounded-full appearance-none cursor-pointer">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[11px] text-slate-400 font-medium">Accent Marks (guides, corners)</span>
+                            <span id="accentWeightVal" class="text-xs mono-text text-slate-400">100%</span>
+                        </div>
+                        <input type="range" id="accentWeightRange" min="50" max="300" value="100" step="10" class="w-full accent-emerald-500 bg-slate-700 h-1 rounded-full appearance-none cursor-pointer">
+                    </div>
+                </fieldset>
+
+                <div>
+                    <div class="section-label">Whole-Mat Elements</div>
+                    <div class="toggle-row">
+                        <label for="dashedGrid" class="text-xs text-slate-300 cursor-pointer">Dashed pattern lines</label>
+                        <input type="checkbox" id="dashedGrid" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                    <div class="toggle-row">
+                        <label for="showProtractor" class="text-xs text-slate-300 cursor-pointer">Protractor angle marks</label>
+                        <input type="checkbox" id="showProtractor" checked class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                    <div class="toggle-row">
+                        <label for="showDiagonals" class="text-xs text-slate-300 cursor-pointer">Diagonal guide (corner-to-corner)</label>
+                        <input type="checkbox" id="showDiagonals" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                    <div class="toggle-row">
+                        <label for="showRadialSpokes" class="text-xs text-slate-300 cursor-pointer">Radial guide spokes (center)</label>
+                        <input type="checkbox" id="showRadialSpokes" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                    <div class="toggle-row">
+                        <label for="showNumbers" class="text-xs text-slate-300 cursor-pointer">Outer border numbering</label>
+                        <input type="checkbox" id="showNumbers" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                    <div class="toggle-row">
+                        <label for="showMinorTicks" class="text-xs text-slate-300 cursor-pointer">Minor ruler ticks (half-step)</label>
+                        <input type="checkbox" id="showMinorTicks" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                    <div class="toggle-row">
+                        <label for="showCenterCross" class="text-xs text-slate-300 cursor-pointer">Center crosshair</label>
+                        <input type="checkbox" id="showCenterCross" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                    <div class="toggle-row">
+                        <label for="showRings" class="text-xs text-slate-300 cursor-pointer">Concentric center rings</label>
+                        <input type="checkbox" id="showRings" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="section-label">Corner-Specific Elements</div>
+                    <p class="text-[10px] text-slate-500 mb-2 -mt-1">Enable an element, then choose which corners it appears on.</p>
+
+                    <div class="space-y-3">
+                        <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                            <div class="toggle-row !py-0">
+                                <label for="enableCircles" class="text-xs text-slate-300 cursor-pointer">Corner alignment circles</label>
+                                <input type="checkbox" id="enableCircles" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                            </div>
+                            <div class="corner-picker-wrap hidden mt-2" data-key="circles">
+                                <div class="corner-grid">
+                                    <button class="corner-btn active" data-corner="tl">TL</button>
+                                    <button class="corner-btn active" data-corner="tr">TR</button>
+                                    <button class="corner-btn active" data-corner="bl">BL</button>
+                                    <button class="corner-btn active" data-corner="br">BR</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                            <div class="toggle-row !py-0">
+                                <label for="enableBrackets" class="text-xs text-slate-300 cursor-pointer">Corner brackets</label>
+                                <input type="checkbox" id="enableBrackets" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                            </div>
+                            <div class="corner-picker-wrap hidden mt-2" data-key="brackets">
+                                <div class="corner-grid">
+                                    <button class="corner-btn active" data-corner="tl">TL</button>
+                                    <button class="corner-btn active" data-corner="tr">TR</button>
+                                    <button class="corner-btn active" data-corner="bl">BL</button>
+                                    <button class="corner-btn active" data-corner="br">BR</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                            <div class="toggle-row !py-0">
+                                <label for="enableWedges" class="text-xs text-slate-300 cursor-pointer">Corner 45° wedges</label>
+                                <input type="checkbox" id="enableWedges" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                            </div>
+                            <div class="corner-picker-wrap hidden mt-2" data-key="wedges">
+                                <div class="corner-grid">
+                                    <button class="corner-btn active" data-corner="tl">TL</button>
+                                    <button class="corner-btn active" data-corner="tr">TR</button>
+                                    <button class="corner-btn active" data-corner="bl">BL</button>
+                                    <button class="corner-btn active" data-corner="br">BR</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                            <div class="toggle-row !py-0">
+                                <label for="enableLabels" class="text-xs text-slate-300 cursor-pointer">Corner index labels</label>
+                                <input type="checkbox" id="enableLabels" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                            </div>
+                            <div class="corner-picker-wrap hidden mt-2" data-key="labels">
+                                <div class="corner-grid">
+                                    <button class="corner-btn active" data-corner="tl">TL</button>
+                                    <button class="corner-btn active" data-corner="tr">TR</button>
+                                    <button class="corner-btn active" data-corner="bl">BL</button>
+                                    <button class="corner-btn active" data-corner="br">BR</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <fieldset class="pt-2 border-t border-slate-800 space-y-3">
+                    <div class="toggle-row">
+                        <label for="showBorder" class="text-xs text-slate-300 cursor-pointer">Show outer border</label>
+                        <input type="checkbox" id="showBorder" checked class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[11px] text-slate-400 font-medium">Border Corner Rounding</span>
+                            <span id="roundingVal" class="text-xs mono-text text-slate-400">0%</span>
+                        </div>
+                        <input type="range" id="roundingRange" min="0" max="100" value="0" class="w-full accent-emerald-500 bg-slate-700 h-1 rounded-full appearance-none cursor-pointer">
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- TAB: COLOR -->
+            <div id="tabColor" class="tab-panel space-y-6">
+                <fieldset>
+                    <legend class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Color Presets</legend>
+                    <div id="presetSwatches" class="grid grid-cols-4 gap-2"></div>
+                </fieldset>
+
+                <fieldset class="space-y-3">
+                    <legend class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Custom Color</legend>
+                    <p class="text-[10px] text-slate-500 -mt-1 mb-1">Pickers always start from your currently active color — never from black.</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <span class="text-[10px] text-slate-500 font-medium">Base Color</span>
+                            <div class="flex gap-1.5 mt-1">
+                                <input type="color" id="colorBase" value="#0b5345" class="h-9 w-9 shrink-0 block rounded-md bg-slate-800 border border-slate-700 cursor-pointer p-1">
+                                <input type="text" id="hexBase" value="#0B5345" maxlength="7" class="hex-input">
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-500 font-medium">Grid / Mark Color</span>
+                            <div class="flex gap-1.5 mt-1">
+                                <input type="color" id="colorLines" value="#117a65" class="h-9 w-9 shrink-0 block rounded-md bg-slate-800 border border-slate-700 cursor-pointer p-1">
+                                <input type="text" id="hexLines" value="#117A65" maxlength="7" class="hex-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-1">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[11px] text-slate-400 font-medium">Line Color Brightness</span>
+                            <span id="lineBrightnessVal" class="text-xs mono-text text-slate-400">+0%</span>
+                        </div>
+                        <input type="range" id="lineBrightnessRange" min="-50" max="50" value="0" step="5" class="w-full accent-emerald-500 bg-slate-700 h-1 rounded-full appearance-none cursor-pointer">
+                        <p class="text-[10px] text-slate-500 mt-1">Lightens or darkens the grid/mark color only — the base swatch stays untouched.</p>
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- TAB: TEXT -->
+            <div id="tabText" class="tab-panel space-y-4">
+                <fieldset class="space-y-4">
+                    <legend class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Content & Typography</legend>
+                    <div>
+                        <span class="text-[11px] text-slate-400 block mb-1">Center Hero Text (Serif)</span>
+                        <textarea id="textMain" rows="2" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 resize-none">Stay Focused.</textarea>
+                    </div>
+                    <div>
+                        <span class="text-[11px] text-slate-400 block mb-1">Subtext Paragraph (Sans-Serif)</span>
+                        <textarea id="textSub" rows="4" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 resize-none">Don't let distractions dilute your potential. Instead, direct your attention toward what truly matters, silence the noise that surrounds you, pursue your priorities with intention, and watch clarity transform into extraordinary results.</textarea>
+                    </div>
+                    <div class="toggle-row">
+                        <label for="showText" class="text-xs text-slate-300 cursor-pointer">Apply text & grid-aligned boundary</label>
+                        <input type="checkbox" id="showText" checked class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                </fieldset>
+            </div>
+
+            <!-- TAB: TEXTURE -->
+            <div id="tabTexture" class="tab-panel space-y-4">
+                <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 space-y-3">
+                    <div class="flex items-center justify-between gap-4">
+                        <label for="showSheen" class="text-xs font-semibold text-slate-100 flex-1">Surface Reflection Sheen</label>
+                        <div class="flex items-center gap-2">
+                            <span id="sheenVal" class="text-xs mono-text text-slate-400 min-w-[32px] text-right">35%</span>
+                            <input type="checkbox" id="showSheen" checked class="rounded bg-slate-700 border-slate-600 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                        </div>
+                    </div>
+                    <input type="range" id="sheenRange" min="0" max="100" value="35" class="w-full accent-emerald-500 bg-slate-700 h-1 rounded-full appearance-none cursor-pointer">
+                </div>
+
+                <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-semibold text-slate-100">Custom Image Shadow/Overlay</h4>
+                        <input type="checkbox" id="enableCustomOverlay" class="rounded bg-slate-700 border-slate-600 text-emerald-500 focus:ring-0 h-4 w-4 cursor-pointer">
+                    </div>
+                    <div id="customOverlayControls" class="space-y-4 hidden border-t border-slate-700 pt-4">
+                        <div>
+                            <label for="customShadowImage" class="block text-[11px] text-slate-400 mb-1">Import Custom Image</label>
+                            <input type="file" id="customShadowImage" accept="image/*" class="w-full text-xs text-slate-400">
+                        </div>
+                        <div id="imagePreviewContainer" class="hidden text-center bg-slate-900 p-2 rounded-md border border-slate-700">
+                            <img id="customImagePreview" src="" alt="Custom Shadow Preview" class="max-w-[120px] max-h-[120px] mx-auto rounded shadow-inner">
+                        </div>
+                        <div>
+                            <label for="customBlendMode" class="block text-[11px] text-slate-400 mb-1">Blend Mode (Effect)</label>
+                            <select id="customBlendMode" class="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-emerald-500">
+                                <option value="overlay" selected>Overlay (Contrast, general shadowing)</option>
+                                <option value="multiply">Multiply (Darkens, good for deep shadows)</option>
+                                <option value="screen">Screen (Lightens, for highlights/noise)</option>
+                                <option value="hard-light">Hard Light</option>
+                                <option value="soft-light">Soft Light</option>
+                                <option value="color-dodge">Color Dodge</option>
+                                <option value="difference">Difference</option>
+                            </select>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <label for="customOverlayOpacity" class="block text-[11px] text-slate-400">Layer Opacity (Strength)</label>
+                                <span id="customOpacityVal" class="text-xs mono-text text-slate-400">100%</span>
+                            </div>
+                            <input type="range" id="customOverlayOpacity" min="0" max="100" value="100" class="w-full accent-emerald-500 bg-slate-700 h-1 rounded-full appearance-none cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="p-4 md:p-6 pt-3 md:pt-4 border-t border-slate-800 space-y-2">
+            <button id="btnUpdatePreview" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2 px-4 rounded-lg text-xs transition items-center justify-center gap-2">
+                Update Preview (pending changes)
+            </button>
+            <div class="grid grid-cols-2 gap-2">
+                <button id="btnExport" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 px-3 rounded-lg text-sm transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-900/20">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span id="exportBtnLabel">PNG</span>
+                </button>
+                <button id="btnExportSVG" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-medium py-2.5 px-3 rounded-lg text-sm transition flex items-center justify-center gap-1.5">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span id="exportSvgLabel">SVG</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="previewWrap" class="flex-1 bg-slate-950 p-3 md:p-6 flex flex-col items-center justify-center relative overflow-hidden">
+        <div class="text-center mb-4 absolute top-3 left-4 md:top-4 md:left-6 pointer-events-none">
+            <span class="text-[10px] md:text-xs text-slate-500 font-medium uppercase tracking-widest">Live Preview</span>
+        </div>
+        <div class="w-full h-full max-w-[94%] max-h-[82%] flex items-center justify-center">
+            <canvas id="wallpaperCanvas" class="max-w-full max-h-full object-contain shadow-2xl border border-slate-800 bg-black rounded"></canvas>
+        </div>
+        <div class="absolute bottom-2 md:bottom-4 text-slate-500 text-[10px] md:text-xs mono-text">
+            Output: <span id="lblCanvasDim" class="text-slate-300">2560x1440</span>
+        </div>
+    </div>
+
+    <div id="toast" class="toast bg-slate-800 border border-slate-700 text-slate-100 text-xs font-medium px-4 py-2 rounded-lg shadow-xl"></div>
+
+    <script>
+        const canvas = document.getElementById('wallpaperCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const presetSelect = document.getElementById('presetSelect');
+        const styleGrid = document.getElementById('styleGrid');
+        const stylePlus = document.getElementById('stylePlus');
+        const gridScaleRange = document.getElementById('gridScaleRange');
+        const gridScaleVal = document.getElementById('gridScaleVal');
+        const gridWeightRange = document.getElementById('gridWeightRange');
+        const gridWeightVal = document.getElementById('gridWeightVal');
+        const borderWeightRange = document.getElementById('borderWeightRange');
+        const borderWeightVal = document.getElementById('borderWeightVal');
+        const accentWeightRange = document.getElementById('accentWeightRange');
+        const accentWeightVal = document.getElementById('accentWeightVal');
+        const colorBase = document.getElementById('colorBase');
+        const colorLines = document.getElementById('colorLines');
+        const hexBase = document.getElementById('hexBase');
+        const hexLines = document.getElementById('hexLines');
+        const lineBrightnessRange = document.getElementById('lineBrightnessRange');
+        const lineBrightnessVal = document.getElementById('lineBrightnessVal');
+
+        const showBorder = document.getElementById('showBorder');
+        const roundingRange = document.getElementById('roundingRange');
+        const roundingVal = document.getElementById('roundingVal');
+
+        const dashedGrid = document.getElementById('dashedGrid');
+        const showProtractor = document.getElementById('showProtractor');
+        const showDiagonals = document.getElementById('showDiagonals');
+        const showRadialSpokes = document.getElementById('showRadialSpokes');
+        const showNumbers = document.getElementById('showNumbers');
+        const showMinorTicks = document.getElementById('showMinorTicks');
+        const showCenterCross = document.getElementById('showCenterCross');
+        const showRings = document.getElementById('showRings');
+
+        const enableCircles = document.getElementById('enableCircles');
+        const enableBrackets = document.getElementById('enableBrackets');
+        const enableWedges = document.getElementById('enableWedges');
+        const enableLabels = document.getElementById('enableLabels');
+
+        const textMain = document.getElementById('textMain');
+        const textSub = document.getElementById('textSub');
+        const showText = document.getElementById('showText');
+        const lblCanvasDim = document.getElementById('lblCanvasDim');
+        const btnExport = document.getElementById('btnExport');
+        const exportBtnLabel = document.getElementById('exportBtnLabel');
+        const btnExportSVG = document.getElementById('btnExportSVG');
+        const exportSvgLabel = document.getElementById('exportSvgLabel');
+        const btnReset = document.getElementById('btnReset');
+        const btnRandomize = document.getElementById('btnRandomize');
+        const btnSavePreset = document.getElementById('btnSavePreset');
+        const btnLoadPreset = document.getElementById('btnLoadPreset');
+        const loadPresetInput = document.getElementById('loadPresetInput');
+        const btnUpdatePreview = document.getElementById('btnUpdatePreview');
+        const livePreviewToggle = document.getElementById('livePreviewToggle');
+        const livePill = document.getElementById('livePill');
+        const btnMaximize = document.getElementById('btnMaximize');
+        const sidebarPanel = document.getElementById('sidebarPanel');
+        const toast = document.getElementById('toast');
+
+        const showSheen = document.getElementById('showSheen');
+        const sheenRange = document.getElementById('sheenRange');
+        const sheenVal = document.getElementById('sheenVal');
+        const enableCustomOverlay = document.getElementById('enableCustomOverlay');
+        const customOverlayControls = document.getElementById('customOverlayControls');
+        const customShadowImage = document.getElementById('customShadowImage');
+        const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+        const customImagePreview = document.getElementById('customImagePreview');
+        const customBlendMode = document.getElementById('customBlendMode');
+        const customOverlayOpacity = document.getElementById('customOverlayOpacity');
+        const customOpacityVal = document.getElementById('customOpacityVal');
+
+        let currentStyle = 'grid';
+        let customImageLoaded = null;
+        let customImageDataUrl = null;
+        let livePreviewOn = true;
+        let dirty = false;
+
+        const cornerConfig = {
+            circles:  { tl: true, tr: true, bl: true, br: true },
+            brackets: { tl: true, tr: true, bl: true, br: true },
+            wedges:   { tl: true, tr: true, bl: true, br: true },
+            labels:   { tl: true, tr: true, bl: true, br: true },
+        };
+
+        const COLOR_PRESETS = [
+            { name: 'Pro Green',     base: '#0b5345', lines: '#117a65' },
+            { name: 'Stealth Black', base: '#111111', lines: '#262626' },
+            { name: 'Craft Orange',  base: '#a04000', lines: '#d35400' },
+            { name: 'Slate Blue',    base: '#1e3a5f', lines: '#3b82f6' },
+            { name: 'Crimson',       base: '#5c0f1c', lines: '#c0392b' },
+            { name: 'Bone Cream',    base: '#e8e0cc', lines: '#8a7f5f' },
+            { name: 'Royal Purple',  base: '#3b0a5c', lines: '#8e44ad' },
+            { name: 'Copper',        base: '#5a3418', lines: '#c87d3a' },
+        ];
+
+        const DEFAULTS = {
+            preset: '2560x1440', style: 'grid', gridScale: 100, gridWeight: 100, borderWeight: 100, accentWeight: 100,
+            colorBase: '#0b5345', colorLines: '#117a65', lineBrightness: 0,
+            showBorder: true, rounding: 0,
+            dashedGrid: false, showProtractor: true, showDiagonals: false, showRadialSpokes: false, showNumbers: false,
+            showMinorTicks: false, showCenterCross: false, showRings: false,
+            enableCircles: false, enableBrackets: false, enableWedges: false, enableLabels: false,
+            textMain: 'Stay Focused.',
+            textSub: "Don't let distractions dilute your potential. Instead, direct your attention toward what truly matters, silence the noise that surrounds you, pursue your priorities with intention, and watch clarity transform into extraordinary results.",
+            showText: true, showSheen: true, sheen: 35,
+        };
+
+        // ---- Robust color setter: updates both the live value AND the HTML attribute so
+        // native color pickers (especially on mobile/WebView) always open on the CURRENT
+        // color instead of falling back to black. ----
+        function setColorValue(el, hex) {
+            el.value = hex;
+            el.setAttribute('value', hex);
+        }
+
+        // ---- Draw scheduling, gated by the Live Preview toggle ----
+        function forceDraw() { drawWallpaper(); dirty = false; updateLiveStatus(); }
+        function requestDraw() {
+            if (livePreviewOn) { drawWallpaper(); dirty = false; } else { dirty = true; }
+            updateLiveStatus();
+        }
+        function updateLiveStatus() {
+            livePill.classList.toggle('on', livePreviewOn);
+            livePill.innerHTML = `<span class="dot"></span>${livePreviewOn ? 'Live' : 'Paused'}`;
+            btnUpdatePreview.classList.toggle('dirty', dirty && !livePreviewOn);
+        }
+        livePreviewToggle.addEventListener('change', () => {
+            livePreviewOn = livePreviewToggle.checked;
+            if (livePreviewOn && dirty) { drawWallpaper(); dirty = false; }
+            updateLiveStatus();
+        });
+        btnUpdatePreview.addEventListener('click', forceDraw);
+
+        btnMaximize.addEventListener('click', () => {
+            const collapsed = sidebarPanel.classList.toggle('mat-collapsed');
+            btnMaximize.textContent = collapsed ? 'Show Controls' : 'Maximize';
+        });
+
+        // ---- Color <-> HSL helpers (used for the brightness slider) ----
+        function hexToHsl(hex) {
+            hex = hex.replace('#', '');
+            const r = parseInt(hex.substr(0, 2), 16) / 255, g = parseInt(hex.substr(2, 2), 16) / 255, b = parseInt(hex.substr(4, 2), 16) / 255;
+            const max = Math.max(r, g, b), min = Math.min(r, g, b);
+            let h, s, l = (max + min) / 2;
+            if (max === min) { h = s = 0; } else {
+                const d = max - min;
+                s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                switch (max) {
+                    case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                    case g: h = (b - r) / d + 2; break;
+                    default: h = (r - g) / d + 4;
+                }
+                h /= 6;
+            }
+            return [h * 360, s * 100, l * 100];
+        }
+        function hslToHex(h, s, l) {
+            h /= 360; s /= 100; l /= 100;
+            let r, g, b;
+            if (s === 0) { r = g = b = l; } else {
+                const hue2rgb = (p, q, t) => { if (t < 0) t += 1; if (t > 1) t -= 1; if (t < 1/6) return p + (q - p) * 6 * t; if (t < 1/2) return q; if (t < 2/3) return p + (q - p) * (2/3 - t) * 6; return p; };
+                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                const p = 2 * l - q;
+                r = hue2rgb(p, q, h + 1/3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1/3);
+            }
+            const toHex = (x) => Math.round(x * 255).toString(16).padStart(2, '0');
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        }
+        function adjustBrightness(hex, deltaPercent) {
+            const [h, s, l] = hexToHsl(hex);
+            const nl = Math.min(100, Math.max(0, l + Number(deltaPercent)));
+            return hslToHex(h, s, nl);
+        }
+        function getEffectiveLineColor() { return adjustBrightness(colorLines.value, lineBrightnessRange.value); }
+        function formatBrightness(v) { const n = Number(v); return `${n > 0 ? '+' : ''}${n}%`; }
+
+        // ---- Color sync: hex text field <-> color picker, always reflecting the CURRENT color ----
+        function syncHexFromColor() {
+            hexBase.value = colorBase.value.toUpperCase();
+            hexLines.value = colorLines.value.toUpperCase();
+        }
+        const HEX_RE = /^#[0-9A-Fa-f]{6}$/;
+        colorBase.addEventListener('input', () => { hexBase.value = colorBase.value.toUpperCase(); updateSwatchSelection(); requestDraw(); });
+        colorLines.addEventListener('input', () => { hexLines.value = colorLines.value.toUpperCase(); updateSwatchSelection(); requestDraw(); });
+        hexBase.addEventListener('input', () => { if (HEX_RE.test(hexBase.value)) { setColorValue(colorBase, hexBase.value); updateSwatchSelection(); requestDraw(); } });
+        hexLines.addEventListener('input', () => { if (HEX_RE.test(hexLines.value)) { setColorValue(colorLines, hexLines.value); updateSwatchSelection(); requestDraw(); } });
+        lineBrightnessRange.addEventListener('input', (e) => { lineBrightnessVal.textContent = formatBrightness(e.target.value); requestDraw(); });
+
+        function buildSwatches() {
+            const container = document.getElementById('presetSwatches');
+            container.innerHTML = '';
+            COLOR_PRESETS.forEach(p => {
+                const btn = document.createElement('button');
+                btn.className = 'swatch-btn';
+                btn.style.background = `linear-gradient(135deg, ${p.base} 55%, ${p.lines} 55%)`;
+                btn.title = p.name;
+                btn.dataset.base = p.base;
+                btn.dataset.lines = p.lines;
+                btn.addEventListener('click', () => setColorPreset(p.base, p.lines));
+                container.appendChild(btn);
+            });
+            updateSwatchSelection();
+        }
+        function updateSwatchSelection() {
+            document.querySelectorAll('.swatch-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.dataset.base.toLowerCase() === colorBase.value.toLowerCase() && btn.dataset.lines.toLowerCase() === colorLines.value.toLowerCase());
+            });
+        }
+        // Setting a preset immediately writes that exact color into both the picker and its
+        // attribute, so any subsequent manual "customize" tap starts from THIS color, not black.
+        window.setColorPreset = function (base, lines) {
+            setColorValue(colorBase, base);
+            setColorValue(colorLines, lines);
+            syncHexFromColor();
+            updateSwatchSelection();
+            forceDraw();
+        };
+
+        document.querySelectorAll('.corner-picker-wrap').forEach(wrap => {
+            const key = wrap.dataset.key;
+            wrap.querySelectorAll('.corner-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const corner = btn.dataset.corner;
+                    cornerConfig[key][corner] = !cornerConfig[key][corner];
+                    btn.classList.toggle('active', cornerConfig[key][corner]);
+                    forceDraw();
+                });
+            });
+        });
+        function wireCornerEnable(checkbox, key) {
+            const wrap = document.querySelector(`.corner-picker-wrap[data-key="${key}"]`);
+            checkbox.addEventListener('change', () => { wrap.classList.toggle('hidden', !checkbox.checked); forceDraw(); });
+        }
+        wireCornerEnable(enableCircles, 'circles');
+        wireCornerEnable(enableBrackets, 'brackets');
+        wireCornerEnable(enableWedges, 'wedges');
+        wireCornerEnable(enableLabels, 'labels');
+
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+            });
+        });
+
+        function showToast(msg) {
+            toast.textContent = msg;
+            toast.classList.add('show');
+            clearTimeout(showToast._t);
+            showToast._t = setTimeout(() => toast.classList.remove('show'), 1800);
+        }
+
+        // Shared text-box geometry so the SVG exporter can match the canvas exactly
+        function computeTextBox(width, height, margin, step, isMobile) {
+            if (!showText.checked) return null;
+            ctx.save();
+            const mainFontSize = Math.round(isMobile ? (34 * (Math.min(width, height) / 1000)) : (42 * (Math.min(width, height) / 1000)));
+            ctx.font = `italic ${mainFontSize}px 'Instrument Serif', Georgia, serif`;
+            const lines = textMain.value.split('\n');
+            let maxW = 0;
+            lines.forEach(l => { maxW = Math.max(maxW, ctx.measureText(l).width); });
+            const spanX = Math.max(3, Math.ceil((maxW + step * 2) / step));
+            const totalTextHeight = lines.length * mainFontSize * 1.15;
+            const spanY = Math.max(isMobile ? 1 : 2, Math.ceil((totalTextHeight + step) / step));
+            const startX = margin + Math.round((width / 2 - (spanX * step) / 2 - margin) / step) * step;
+            const startY = margin + Math.round((height / 2 - (spanY * step) / 2 - margin) / step) * step;
+            ctx.restore();
+            return { x: startX, y: startY, w: spanX * step, h: spanY * step, lines, mainFontSize };
+        }
+
+        function drawWallpaper() {
+            const [width, height] = presetSelect.value.split('x').map(Number);
+            canvas.width = width;
+            canvas.height = height;
+            lblCanvasDim.innerText = `${width} × ${height}`;
+
+            const isMobile = width < height;
+            const baseScale = Math.min(width, height) / 1000;
+
+            const scaleMultiplier = parseInt(gridScaleRange.value) / 100;
+            const gridWeight = parseInt(gridWeightRange.value) / 100;
+            const borderWeight = parseInt(borderWeightRange.value) / 100;
+            const accentWeight = parseInt(accentWeightRange.value) / 100;
+            const effLineColor = getEffectiveLineColor();
+            const step = (isMobile ? 45 : 55) * baseScale * scaleMultiplier;
+            const margin = step;
+
+            ctx.fillStyle = colorBase.value;
+            ctx.fillRect(0, 0, width, height);
+            if (showSheen.checked) drawExistingSheen(width, height);
+
+            const textBox = computeTextBox(width, height, margin, step, isMobile);
+
+            ctx.save();
+            ctx.beginPath();
+            const radiusPercent = parseInt(roundingRange.value) / 100;
+            const borderRoundingRadius = radiusPercent * (margin * 1.5);
+            const bx = margin, by = margin, bw = width - (margin * 2), bh = height - (margin * 2);
+
+            if (borderRoundingRadius > 0) {
+                if (ctx.roundRect) {
+                    ctx.roundRect(bx, by, bw, bh, borderRoundingRadius);
+                } else {
+                    ctx.moveTo(bx + borderRoundingRadius, by);
+                    ctx.arcTo(bx + bw, by, bx + bw, by + bh, borderRoundingRadius);
+                    ctx.arcTo(bx + bw, by + bh, bx, by + bh, borderRoundingRadius);
+                    ctx.arcTo(bx, by + bh, bx, by, borderRoundingRadius);
+                    ctx.arcTo(bx, by, bx + bw, by, borderRoundingRadius);
+                    ctx.closePath();
+                }
+            } else {
+                ctx.rect(bx, by, bw, bh);
+            }
+
+            if (showBorder.checked) {
+                ctx.lineWidth = Math.max(1.5, 1.5 * baseScale) * borderWeight;
+                ctx.strokeStyle = effLineColor;
+                ctx.stroke();
+            }
+            if (textBox) ctx.rect(textBox.x, textBox.y, textBox.w, textBox.h);
+            ctx.clip('evenodd');
+
+            ctx.lineWidth = Math.max(0.5, 0.5 * baseScale) * gridWeight;
+            ctx.strokeStyle = effLineColor;
+            ctx.setLineDash(dashedGrid.checked ? [3 * baseScale * gridWeight, 3 * baseScale * gridWeight] : []);
+            if (currentStyle === 'grid') drawGridStyle(width, height, margin, step);
+            else drawPlusStyle(width, height, margin, step, baseScale);
+            ctx.setLineDash([]);
+
+            ctx.strokeStyle = effLineColor;
+            if (showProtractor.checked) drawProtractorMarks(width, height, margin, baseScale, accentWeight);
+            if (showDiagonals.checked) drawDiagonals(width, height, margin, baseScale, accentWeight);
+            if (showRadialSpokes.checked) drawRadialSpokes(width, height, baseScale, accentWeight);
+            if (showMinorTicks.checked) drawMinorTicks(width, height, margin, step, baseScale, accentWeight);
+            if (showCenterCross.checked) drawCenterCrosshair(width, height, baseScale, accentWeight);
+            if (showRings.checked) drawConcentricRings(width, height, baseScale, accentWeight);
+
+            if (enableCircles.checked) drawCornerCircles(margin, step, baseScale, accentWeight, bx, by, bw, bh);
+            if (enableBrackets.checked) drawCornerBrackets(step, baseScale, accentWeight, bx, by, bw, bh);
+            if (enableWedges.checked) drawCornerWedges(step, baseScale, accentWeight, bx, by, bw, bh);
+            if (enableLabels.checked) drawCornerLabels(step, baseScale, effLineColor, bx, by, bw, bh);
+
+            ctx.restore();
+
+            if (textBox) {
+                ctx.lineWidth = Math.max(0.5, 0.5 * baseScale) * borderWeight;
+                ctx.strokeStyle = effLineColor;
+                ctx.strokeRect(textBox.x, textBox.y, textBox.w, textBox.h);
+            }
+
+            if (showNumbers.checked) drawBorderNumbers(width, height, margin, step, baseScale, effLineColor);
+            if (enableCustomOverlay.checked && customImageLoaded) applyCustomImageOverlay(width, height);
+            if (showText.checked) drawTextLayers(width, height, margin, isMobile, baseScale, textBox, effLineColor);
+        }
+
+        function applyCustomImageOverlay(cWidth, cHeight) {
+            ctx.save();
+            ctx.globalCompositeOperation = customBlendMode.value;
+            ctx.globalAlpha = parseInt(customOverlayOpacity.value) / 100;
+            const imgAspect = customImageLoaded.width / customImageLoaded.height;
+            const canvasAspect = cWidth / cHeight;
+            let drawW, drawH, dX, dY;
+            if (canvasAspect > imgAspect) { drawW = cWidth; drawH = drawW / imgAspect; dX = 0; dY = (cHeight - drawH) / 2; }
+            else { drawH = cHeight; drawW = drawH * imgAspect; dY = 0; dX = (cWidth - drawW) / 2; }
+            ctx.drawImage(customImageLoaded, dX, dY, drawW, drawH);
+            ctx.restore();
+        }
+
+        function drawTextLayers(width, height, margin, isMobile, baseScale, textBox, lineColor) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            if (textBox) {
+                ctx.font = `italic ${textBox.mainFontSize}px 'Instrument Serif', Georgia, serif`;
+                const centerX = textBox.x + textBox.w / 2;
+                const centerY = textBox.y + textBox.h / 2;
+                const lineHeight = textBox.mainFontSize * 1.15;
+                const startY = centerY - ((textBox.lines.length - 1) * lineHeight) / 2;
+                textBox.lines.forEach((line, index) => ctx.fillText(line, centerX, startY + index * lineHeight));
+            }
+            const subFontSize = Math.round(isMobile ? (10 * baseScale) : (11 * baseScale));
+            ctx.font = `${subFontSize}px 'Inter', sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.fillStyle = lineColor;
+            const maxParagraphWidth = isMobile ? (width - (margin * 3.5)) : 320 * baseScale;
+            const paraLineHeight = subFontSize * 1.5;
+            const pX = isMobile ? (margin * 1.8) : (width - maxParagraphWidth - (margin * 1.5));
+            const pY = isMobile ? (height - (margin * 4.5)) : (height - (margin * 2.5));
+            wrapText(ctx, textSub.value, pX, pY, maxParagraphWidth, paraLineHeight);
+
+            ctx.save();
+            ctx.globalAlpha = 0.65;
+            ctx.font = `${Math.round(8 * baseScale)}px 'Inter', sans-serif`;
+            ctx.fillStyle = lineColor;
+            if (!isMobile) {
+                ctx.translate(margin * 0.6, margin * 2.1);
+                ctx.rotate(Math.PI / 2);
+                ctx.textAlign = 'left';
+                ctx.fillText(`CUTTING MAT STUDIO PRO // ${presetSelect.value} ASPECT RATIO`, 0, 0);
+            } else {
+                ctx.textAlign = 'left';
+                ctx.fillText(`CUTTING MAT STUDIO // ${presetSelect.value}`, margin * 1.1, margin * 0.65);
+            }
+            ctx.restore();
+        }
+
+        function drawExistingSheen(w, h) {
+            const sheenAlpha = parseInt(sheenRange.value) / 100;
+            if (sheenAlpha > 0) {
+                ctx.save();
+                ctx.globalAlpha = sheenAlpha;
+                let g = ctx.createLinearGradient(0, 0, w, h);
+                g.addColorStop(0, 'rgba(0,0,0,0.15)'); g.addColorStop(0.2, 'rgba(255,255,255,0.08)');
+                g.addColorStop(0.4, 'rgba(0,0,0,0.2)'); g.addColorStop(0.55, 'rgba(255,255,255,0.12)');
+                g.addColorStop(0.7, 'rgba(0,0,0,0.25)'); g.addColorStop(0.9, 'rgba(255,255,255,0.05)');
+                g.addColorStop(1, 'rgba(0,0,0,0.3)');
+                ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+                ctx.restore();
+            }
+        }
+
+        function drawGridStyle(width, height, margin, step) {
+            for (let y = margin + step; y < height - margin; y += step) { ctx.beginPath(); ctx.moveTo(margin, y); ctx.lineTo(width - margin, y); ctx.stroke(); }
+            for (let x = margin + step; x < width - margin; x += step) { ctx.beginPath(); ctx.moveTo(x, margin); ctx.lineTo(x, height - margin); ctx.stroke(); }
+        }
+        function drawPlusStyle(width, height, margin, step, baseScale) {
+            const plusSize = 4 * baseScale;
+            for (let x = margin; x <= width - margin; x += step) {
+                for (let y = margin; y <= height - margin; y += step) {
+                    ctx.beginPath(); ctx.moveTo(x - plusSize, y); ctx.lineTo(x + plusSize, y);
+                    ctx.moveTo(x, y - plusSize); ctx.lineTo(x, y + plusSize); ctx.stroke();
+                }
+            }
+        }
+        function drawProtractorMarks(w, h, margin, baseScale, accentWeight) {
+            ctx.save();
+            ctx.lineWidth = Math.max(0.5, 0.5 * baseScale) * accentWeight;
+            ctx.setLineDash([4 * baseScale, 4 * baseScale]); ctx.globalAlpha = 0.5;
+            const oX = margin, oY = h - margin, len = Math.min(w, h) * 0.7;
+            ctx.beginPath(); ctx.moveTo(oX, oY); ctx.lineTo(oX + len * 0.95 * Math.cos(Math.PI/4), oY - len * 0.95 * Math.sin(Math.PI/4)); ctx.stroke();
+            [Math.PI/6, Math.PI/3].forEach(angle => {
+                ctx.beginPath(); ctx.moveTo(oX, oY); ctx.lineTo(oX + len * 0.6 * Math.cos(angle), oY - len * 0.6 * Math.sin(angle)); ctx.stroke();
+            });
+            ctx.restore();
+        }
+        function drawDiagonals(w, h, margin, baseScale, accentWeight) {
+            ctx.save();
+            ctx.globalAlpha = 0.55;
+            ctx.lineWidth = Math.max(0.5, 0.5 * baseScale) * accentWeight;
+            ctx.beginPath(); ctx.moveTo(margin, margin); ctx.lineTo(w - margin, h - margin); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(w - margin, margin); ctx.lineTo(margin, h - margin); ctx.stroke();
+            ctx.restore();
+        }
+        function drawRadialSpokes(w, h, baseScale, accentWeight) {
+            ctx.save();
+            ctx.globalAlpha = 0.4;
+            ctx.lineWidth = Math.max(0.4, 0.4 * baseScale) * accentWeight;
+            const cx = w / 2, cy = h / 2, r = Math.sqrt(w * w + h * h);
+            for (let deg = 0; deg < 360; deg += 45) {
+                const rad = deg * Math.PI / 180;
+                ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + r * Math.cos(rad), cy + r * Math.sin(rad)); ctx.stroke();
+            }
+            ctx.restore();
+        }
+        function drawMinorTicks(w, h, margin, step, baseScale, accentWeight) {
+            ctx.save();
+            ctx.globalAlpha = 0.6;
+            ctx.lineWidth = Math.max(0.4, 0.4 * baseScale) * accentWeight;
+            const tickLen = step * 0.18;
+            for (let x = margin + step / 2; x < w - margin; x += step) { ctx.beginPath(); ctx.moveTo(x, margin - tickLen); ctx.lineTo(x, margin); ctx.stroke(); }
+            for (let y = margin + step / 2; y < h - margin; y += step) { ctx.beginPath(); ctx.moveTo(margin - tickLen, y); ctx.lineTo(margin, y); ctx.stroke(); }
+            ctx.restore();
+        }
+        function drawCenterCrosshair(w, h, baseScale, accentWeight) {
+            ctx.save();
+            const cx = w / 2, cy = h / 2;
+            const armLen = Math.min(w, h) * 0.035;
+            ctx.globalAlpha = 0.75;
+            ctx.lineWidth = Math.max(0.75, 0.75 * baseScale) * accentWeight;
+            ctx.beginPath(); ctx.moveTo(cx - armLen, cy); ctx.lineTo(cx + armLen, cy); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx, cy - armLen); ctx.lineTo(cx, cy + armLen); ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx, cy, armLen * 0.28, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+        }
+        function drawConcentricRings(w, h, baseScale, accentWeight) {
+            ctx.save();
+            const cx = w / 2, cy = h / 2, base = Math.min(w, h);
+            ctx.globalAlpha = 0.4;
+            ctx.lineWidth = Math.max(0.5, 0.5 * baseScale) * accentWeight;
+            [0.05, 0.09, 0.13].forEach(r => { ctx.beginPath(); ctx.arc(cx, cy, base * r, 0, Math.PI * 2); ctx.stroke(); });
+            ctx.restore();
+        }
+        function drawCornerCircles(margin, step, baseScale, accentWeight, bx, by, bw, bh) {
+            ctx.save();
+            ctx.lineWidth = Math.max(0.75, 0.75 * baseScale) * accentWeight;
+            const r = step * 0.42;
+            const points = { tl: [bx + step, by + step], tr: [bx + bw - step, by + step], bl: [bx + step, by + bh - step], br: [bx + bw - step, by + bh - step] };
+            Object.entries(points).forEach(([key, [cx, cy]]) => {
+                if (!cornerConfig.circles[key]) return;
+                ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx - r * 0.5, cy); ctx.lineTo(cx + r * 0.5, cy); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(cx, cy - r * 0.5); ctx.lineTo(cx, cy + r * 0.5); ctx.stroke();
+            });
+            ctx.restore();
+        }
+        function drawCornerBrackets(step, baseScale, accentWeight, bx, by, bw, bh) {
+            ctx.save();
+            ctx.lineWidth = Math.max(1, 1 * baseScale) * accentWeight;
+            const arm = step * 0.9;
+            if (cornerConfig.brackets.tl) { ctx.beginPath(); ctx.moveTo(bx, by + arm); ctx.lineTo(bx, by); ctx.lineTo(bx + arm, by); ctx.stroke(); }
+            if (cornerConfig.brackets.tr) { ctx.beginPath(); ctx.moveTo(bx + bw - arm, by); ctx.lineTo(bx + bw, by); ctx.lineTo(bx + bw, by + arm); ctx.stroke(); }
+            if (cornerConfig.brackets.bl) { ctx.beginPath(); ctx.moveTo(bx, by + bh - arm); ctx.lineTo(bx, by + bh); ctx.lineTo(bx + arm, by + bh); ctx.stroke(); }
+            if (cornerConfig.brackets.br) { ctx.beginPath(); ctx.moveTo(bx + bw - arm, by + bh); ctx.lineTo(bx + bw, by + bh); ctx.lineTo(bx + bw, by + bh - arm); ctx.stroke(); }
+            ctx.restore();
+        }
+        function drawCornerWedges(step, baseScale, accentWeight, bx, by, bw, bh) {
+            ctx.save();
+            ctx.globalAlpha = 0.7;
+            ctx.lineWidth = Math.max(0.6, 0.6 * baseScale) * accentWeight;
+            const inset = step * 1.3;
+            if (cornerConfig.wedges.tl) { ctx.beginPath(); ctx.moveTo(bx + inset, by); ctx.lineTo(bx, by + inset); ctx.stroke(); }
+            if (cornerConfig.wedges.tr) { ctx.beginPath(); ctx.moveTo(bx + bw - inset, by); ctx.lineTo(bx + bw, by + inset); ctx.stroke(); }
+            if (cornerConfig.wedges.bl) { ctx.beginPath(); ctx.moveTo(bx, by + bh - inset); ctx.lineTo(bx + inset, by + bh); ctx.stroke(); }
+            if (cornerConfig.wedges.br) { ctx.beginPath(); ctx.moveTo(bx + bw, by + bh - inset); ctx.lineTo(bx + bw - inset, by + bh); ctx.stroke(); }
+            ctx.restore();
+        }
+        function drawCornerLabels(step, baseScale, lineColor, bx, by, bw, bh) {
+            ctx.save();
+            ctx.fillStyle = lineColor;
+            ctx.globalAlpha = 0.85;
+            ctx.font = `${Math.max(9, Math.round(10 * baseScale))}px 'JetBrains Mono', monospace`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            const inset = step * 0.55;
+            const points = { tl: [bx + inset, by + inset], tr: [bx + bw - inset, by + inset], bl: [bx + inset, by + bh - inset], br: [bx + bw - inset, by + bh - inset] };
+            Object.entries(points).forEach(([key, [x, y]]) => { if (cornerConfig.labels[key]) ctx.fillText(key.toUpperCase(), x, y); });
+            ctx.restore();
+        }
+        function drawBorderNumbers(w, h, margin, step, baseScale, lineColor) {
+            ctx.save();
+            ctx.fillStyle = lineColor;
+            ctx.globalAlpha = 0.85;
+            ctx.font = `${Math.max(8, Math.round(9 * baseScale))}px 'JetBrains Mono', monospace`;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            let i = 1;
+            for (let x = margin + step; x < w - margin; x += step) { ctx.fillText(String(i), x, margin * 0.5); i++; }
+            ctx.textAlign = 'right';
+            i = 1;
+            for (let y = margin + step; y < h - margin; y += step) { ctx.fillText(String(i), margin * 0.72, y); i++; }
+            ctx.restore();
+        }
+        function wrapText(cx, text, x, y, maxW, lineH) {
+            let words = text.split(' '), line = '', nLines = 0;
+            for (let n = 0; n < words.length; n++) {
+                let testLine = line + words[n] + ' ';
+                if (cx.measureText(testLine).width > maxW && n > 0) { cx.fillText(line, x, y + (nLines * lineH)); line = words[n] + ' '; nLines++; }
+                else { line = testLine; }
+            }
+            cx.fillText(line, x, y + (nLines * lineH));
+        }
+
+        function setStyle(styleName, activeBtn, inactiveBtn) {
+            currentStyle = styleName;
+            activeBtn.className = "py-2 px-3 text-sm rounded-lg border bg-slate-800 border-emerald-500 text-white font-medium";
+            inactiveBtn.className = "py-2 px-3 text-sm rounded-lg border bg-slate-800 border-slate-700 text-slate-400 font-medium hover:border-slate-600";
+            forceDraw();
+        }
+        styleGrid.addEventListener('click', () => setStyle('grid', styleGrid, stylePlus));
+        stylePlus.addEventListener('click', () => setStyle('plus', stylePlus, styleGrid));
+
+        [textMain, textSub].forEach(el => el.addEventListener('input', requestDraw));
+        [gridScaleRange, gridWeightRange, borderWeightRange, accentWeightRange, roundingRange, sheenRange, customOverlayOpacity].forEach(el => el.addEventListener('input', requestDraw));
+        [presetSelect, showBorder, showText, showSheen, dashedGrid, showProtractor, showDiagonals, showRadialSpokes,
+         showNumbers, showMinorTicks, showCenterCross, showRings, enableCustomOverlay, customBlendMode].forEach(el => el.addEventListener('input', forceDraw));
+
+        sheenRange.addEventListener('input', (e) => sheenVal.innerText = `${e.target.value}%`);
+        gridScaleRange.addEventListener('input', (e) => gridScaleVal.innerText = `${e.target.value}%`);
+        gridWeightRange.addEventListener('input', (e) => gridWeightVal.innerText = `${e.target.value}%`);
+        borderWeightRange.addEventListener('input', (e) => borderWeightVal.innerText = `${e.target.value}%`);
+        accentWeightRange.addEventListener('input', (e) => accentWeightVal.innerText = `${e.target.value}%`);
+        roundingRange.addEventListener('input', (e) => roundingVal.innerText = `${e.target.value}%`);
+        customOverlayOpacity.addEventListener('input', (e) => customOpacityVal.innerText = `${e.target.value}%`);
+
+        enableCustomOverlay.addEventListener('change', () => customOverlayControls.classList.toggle('hidden', !enableCustomOverlay.checked));
+
+        customShadowImage.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        customImageLoaded = img;
+                        customImageDataUrl = e.target.result;
+                        customImagePreview.src = e.target.result;
+                        imagePreviewContainer.classList.remove('hidden');
+                        forceDraw();
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            } else {
+                customImageLoaded = null; customImageDataUrl = null; imagePreviewContainer.classList.add('hidden');
+                forceDraw();
+            }
+        });
+
+        btnExport.addEventListener('click', () => {
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `cutting_mat_pro_${presetSelect.value}_${Date.now()}.png`;
+            link.href = dataUrl; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            exportBtnLabel.textContent = '✓ Done';
+            showToast('PNG exported to your downloads');
+            setTimeout(() => exportBtnLabel.textContent = 'PNG', 1600);
+        });
+
+        // ---- SVG export: rebuilds the current design as vector shapes ----
+        function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+        function buildSVG() {
+            const [width, height] = presetSelect.value.split('x').map(Number);
+            const isMobile = width < height;
+            const baseScale = Math.min(width, height) / 1000;
+            const scaleMultiplier = parseInt(gridScaleRange.value) / 100;
+            const gridWeight = parseInt(gridWeightRange.value) / 100;
+            const borderWeight = parseInt(borderWeightRange.value) / 100;
+            const accentWeight = parseInt(accentWeightRange.value) / 100;
+            const effLineColor = getEffectiveLineColor();
+            const step = (isMobile ? 45 : 55) * baseScale * scaleMultiplier;
+            const margin = step;
+            const bx = margin, by = margin, bw = width - margin * 2, bh = height - margin * 2;
+            const textBox = computeTextBox(width, height, margin, step, isMobile);
+            const dash = dashedGrid.checked ? `stroke-dasharray="${(3 * baseScale * gridWeight).toFixed(2)},${(3 * baseScale * gridWeight).toFixed(2)}"` : '';
+
+            let s = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">\n`;
+            s += `<rect x="0" y="0" width="${width}" height="${height}" fill="${colorBase.value}"/>\n`;
+
+            if (showSheen.checked) {
+                const a = parseInt(sheenRange.value) / 100;
+                s += `<defs><linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="black" stop-opacity="0.15"/><stop offset="20%" stop-color="white" stop-opacity="0.08"/>
+                <stop offset="40%" stop-color="black" stop-opacity="0.2"/><stop offset="55%" stop-color="white" stop-opacity="0.12"/>
+                <stop offset="70%" stop-color="black" stop-opacity="0.25"/><stop offset="90%" stop-color="white" stop-opacity="0.05"/>
+                <stop offset="100%" stop-color="black" stop-opacity="0.3"/></linearGradient></defs>\n`;
+                s += `<rect x="0" y="0" width="${width}" height="${height}" fill="url(#sheen)" opacity="${a}"/>\n`;
+            }
+
+            const rx = (parseInt(roundingRange.value) / 100) * (margin * 1.5);
+            const clipId = 'matClip';
+            s += `<defs><clipPath id="${clipId}" clip-rule="evenodd"><path fill-rule="evenodd" d="M ${bx} ${by+rx} `;
+            s += `A ${rx} ${rx} 0 0 1 ${bx+rx} ${by} L ${bx+bw-rx} ${by} A ${rx} ${rx} 0 0 1 ${bx+bw} ${by+rx} L ${bx+bw} ${by+bh-rx} A ${rx} ${rx} 0 0 1 ${bx+bw-rx} ${by+bh} L ${bx+rx} ${by+bh} A ${rx} ${rx} 0 0 1 ${bx} ${by+bh-rx} Z`;
+            if (textBox) s += ` M ${textBox.x} ${textBox.y} h ${textBox.w} v ${textBox.h} h ${-textBox.w} Z`;
+            s += `"/></clipPath></defs>\n`;
+
+            if (showBorder.checked) {
+                const bw2 = (Math.max(1.5, 1.5 * baseScale) * borderWeight).toFixed(2);
+                s += `<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="${rx}" fill="none" stroke="${effLineColor}" stroke-width="${bw2}"/>\n`;
+            }
+
+            s += `<g clip-path="url(#${clipId})">\n`;
+            const gw = (Math.max(0.5, 0.5 * baseScale) * gridWeight).toFixed(2);
+            if (currentStyle === 'grid') {
+                for (let y = margin + step; y < height - margin; y += step) s += `<line x1="${bx}" y1="${y.toFixed(2)}" x2="${bx+bw}" y2="${y.toFixed(2)}" stroke="${effLineColor}" stroke-width="${gw}" ${dash}/>\n`;
+                for (let x = margin + step; x < width - margin; x += step) s += `<line x1="${x.toFixed(2)}" y1="${by}" x2="${x.toFixed(2)}" y2="${by+bh}" stroke="${effLineColor}" stroke-width="${gw}" ${dash}/>\n`;
+            } else {
+                const ps = 4 * baseScale;
+                for (let x = margin; x <= width - margin; x += step) {
+                    for (let y = margin; y <= height - margin; y += step) {
+                        s += `<line x1="${(x-ps).toFixed(2)}" y1="${y.toFixed(2)}" x2="${(x+ps).toFixed(2)}" y2="${y.toFixed(2)}" stroke="${effLineColor}" stroke-width="${gw}" ${dash}/>\n`;
+                        s += `<line x1="${x.toFixed(2)}" y1="${(y-ps).toFixed(2)}" x2="${x.toFixed(2)}" y2="${(y+ps).toFixed(2)}" stroke="${effLineColor}" stroke-width="${gw}" ${dash}/>\n`;
+                    }
+                }
+            }
+
+            const aw = (Math.max(0.5, 0.5 * baseScale) * accentWeight).toFixed(2);
+            if (showProtractor.checked) {
+                const oX = margin, oY = height - margin, len = Math.min(width, height) * 0.7;
+                const pts = [Math.PI/4 * 0.95 / (Math.PI/4), 1];
+                s += `<g stroke="${effLineColor}" stroke-width="${aw}" opacity="0.5" stroke-dasharray="${4*baseScale},${4*baseScale}">\n`;
+                s += `<line x1="${oX}" y1="${oY}" x2="${(oX + len*0.95*Math.cos(Math.PI/4)).toFixed(2)}" y2="${(oY - len*0.95*Math.sin(Math.PI/4)).toFixed(2)}"/>\n`;
+                [Math.PI/6, Math.PI/3].forEach(angle => { s += `<line x1="${oX}" y1="${oY}" x2="${(oX + len*0.6*Math.cos(angle)).toFixed(2)}" y2="${(oY - len*0.6*Math.sin(angle)).toFixed(2)}"/>\n`; });
+                s += `</g>\n`;
+            }
+            if (showDiagonals.checked) {
+                s += `<g stroke="${effLineColor}" stroke-width="${aw}" opacity="0.55">\n`;
+                s += `<line x1="${margin}" y1="${margin}" x2="${width-margin}" y2="${height-margin}"/>\n`;
+                s += `<line x1="${width-margin}" y1="${margin}" x2="${margin}" y2="${height-margin}"/>\n</g>\n`;
+            }
+            if (showRadialSpokes.checked) {
+                const cx = width/2, cy = height/2, r = Math.sqrt(width*width + height*height);
+                s += `<g stroke="${effLineColor}" stroke-width="${(Math.max(0.4,0.4*baseScale)*accentWeight).toFixed(2)}" opacity="0.4">\n`;
+                for (let deg = 0; deg < 360; deg += 45) { const rad = deg*Math.PI/180; s += `<line x1="${cx}" y1="${cy}" x2="${(cx+r*Math.cos(rad)).toFixed(2)}" y2="${(cy+r*Math.sin(rad)).toFixed(2)}"/>\n`; }
+                s += `</g>\n`;
+            }
+            if (showMinorTicks.checked) {
+                const tickLen = step * 0.18;
+                s += `<g stroke="${effLineColor}" stroke-width="${(Math.max(0.4,0.4*baseScale)*accentWeight).toFixed(2)}" opacity="0.6">\n`;
+                for (let x = margin + step/2; x < width - margin; x += step) s += `<line x1="${x.toFixed(2)}" y1="${(margin-tickLen).toFixed(2)}" x2="${x.toFixed(2)}" y2="${margin}"/>\n`;
+                for (let y = margin + step/2; y < height - margin; y += step) s += `<line x1="${(margin-tickLen).toFixed(2)}" y1="${y.toFixed(2)}" x2="${margin}" y2="${y.toFixed(2)}"/>\n`;
+                s += `</g>\n`;
+            }
+            if (showCenterCross.checked) {
+                const cx = width/2, cy = height/2, armLen = Math.min(width,height)*0.035;
+                s += `<g stroke="${effLineColor}" stroke-width="${(Math.max(0.75,0.75*baseScale)*accentWeight).toFixed(2)}" opacity="0.75">\n`;
+                s += `<line x1="${(cx-armLen).toFixed(2)}" y1="${cy}" x2="${(cx+armLen).toFixed(2)}" y2="${cy}"/>\n`;
+                s += `<line x1="${cx}" y1="${(cy-armLen).toFixed(2)}" x2="${cx}" y2="${(cy+armLen).toFixed(2)}"/>\n`;
+                s += `<circle cx="${cx}" cy="${cy}" r="${(armLen*0.28).toFixed(2)}" fill="none"/>\n</g>\n`;
+            }
+            if (showRings.checked) {
+                const cx = width/2, cy = height/2, base = Math.min(width,height);
+                s += `<g stroke="${effLineColor}" stroke-width="${(Math.max(0.5,0.5*baseScale)*accentWeight).toFixed(2)}" opacity="0.4" fill="none">\n`;
+                [0.05,0.09,0.13].forEach(r => { s += `<circle cx="${cx}" cy="${cy}" r="${(base*r).toFixed(2)}"/>\n`; });
+                s += `</g>\n`;
+            }
+            const cbw = (Math.max(0.75, 0.75*baseScale) * accentWeight).toFixed(2);
+            if (enableCircles.checked) {
+                const r = step * 0.42;
+                const pts = { tl:[bx+step,by+step], tr:[bx+bw-step,by+step], bl:[bx+step,by+bh-step], br:[bx+bw-step,by+bh-step] };
+                Object.entries(pts).forEach(([k,[cx,cy]]) => { if (!cornerConfig.circles[k]) return;
+                    s += `<g stroke="${effLineColor}" stroke-width="${cbw}" fill="none"><circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="${r.toFixed(2)}"/><line x1="${(cx-r*0.5).toFixed(2)}" y1="${cy.toFixed(2)}" x2="${(cx+r*0.5).toFixed(2)}" y2="${cy.toFixed(2)}"/><line x1="${cx.toFixed(2)}" y1="${(cy-r*0.5).toFixed(2)}" x2="${cx.toFixed(2)}" y2="${(cy+r*0.5).toFixed(2)}"/></g>\n`;
+                });
+            }
+            if (enableBrackets.checked) {
+                const arm = step * 0.9;
+                const bwid = (Math.max(1,1*baseScale)*accentWeight).toFixed(2);
+                s += `<g stroke="${effLineColor}" stroke-width="${bwid}" fill="none">\n`;
+                if (cornerConfig.brackets.tl) s += `<polyline points="${bx},${(by+arm).toFixed(2)} ${bx},${by} ${(bx+arm).toFixed(2)},${by}"/>\n`;
+                if (cornerConfig.brackets.tr) s += `<polyline points="${(bx+bw-arm).toFixed(2)},${by} ${(bx+bw).toFixed(2)},${by} ${(bx+bw).toFixed(2)},${(by+arm).toFixed(2)}"/>\n`;
+                if (cornerConfig.brackets.bl) s += `<polyline points="${bx},${(by+bh-arm).toFixed(2)} ${bx},${(by+bh).toFixed(2)} ${(bx+arm).toFixed(2)},${(by+bh).toFixed(2)}"/>\n`;
+                if (cornerConfig.brackets.br) s += `<polyline points="${(bx+bw-arm).toFixed(2)},${(by+bh).toFixed(2)} ${(bx+bw).toFixed(2)},${(by+bh).toFixed(2)} ${(bx+bw).toFixed(2)},${(by+bh-arm).toFixed(2)}"/>\n`;
+                s += `</g>\n`;
+            }
+            if (enableWedges.checked) {
+                const inset = step * 1.3;
+                const wwid = (Math.max(0.6,0.6*baseScale)*accentWeight).toFixed(2);
+                s += `<g stroke="${effLineColor}" stroke-width="${wwid}" opacity="0.7">\n`;
+                if (cornerConfig.wedges.tl) s += `<line x1="${(bx+inset).toFixed(2)}" y1="${by}" x2="${bx}" y2="${(by+inset).toFixed(2)}"/>\n`;
+                if (cornerConfig.wedges.tr) s += `<line x1="${(bx+bw-inset).toFixed(2)}" y1="${by}" x2="${(bx+bw).toFixed(2)}" y2="${(by+inset).toFixed(2)}"/>\n`;
+                if (cornerConfig.wedges.bl) s += `<line x1="${bx}" y1="${(by+bh-inset).toFixed(2)}" x2="${(bx+inset).toFixed(2)}" y2="${(by+bh).toFixed(2)}"/>\n`;
+                if (cornerConfig.wedges.br) s += `<line x1="${(bx+bw).toFixed(2)}" y1="${(by+bh-inset).toFixed(2)}" x2="${(bx+bw-inset).toFixed(2)}" y2="${(by+bh).toFixed(2)}"/>\n`;
+                s += `</g>\n`;
+            }
+            if (enableLabels.checked) {
+                const inset = step * 0.55;
+                const pts = { tl:[bx+inset,by+inset], tr:[bx+bw-inset,by+inset], bl:[bx+inset,by+bh-inset], br:[bx+bw-inset,by+bh-inset] };
+                s += `<g fill="${effLineColor}" opacity="0.85" font-family="JetBrains Mono, monospace" font-size="${Math.max(9,Math.round(10*baseScale))}" text-anchor="middle" dominant-baseline="middle">\n`;
+                Object.entries(pts).forEach(([k,[x,y]]) => { if (cornerConfig.labels[k]) s += `<text x="${x.toFixed(2)}" y="${y.toFixed(2)}">${k.toUpperCase()}</text>\n`; });
+                s += `</g>\n`;
+            }
+            s += `</g>\n`; // end clipped group
+
+            if (textBox) {
+                const bw3 = (Math.max(0.5,0.5*baseScale)*borderWeight).toFixed(2);
+                s += `<rect x="${textBox.x}" y="${textBox.y}" width="${textBox.w}" height="${textBox.h}" fill="none" stroke="${effLineColor}" stroke-width="${bw3}"/>\n`;
+            }
+
+            if (showNumbers.checked) {
+                s += `<g fill="${effLineColor}" opacity="0.85" font-family="JetBrains Mono, monospace" font-size="${Math.max(8,Math.round(9*baseScale))}">\n`;
+                let i = 1;
+                for (let x = margin + step; x < width - margin; x += step) { s += `<text x="${x.toFixed(2)}" y="${(margin*0.5).toFixed(2)}" text-anchor="middle" dominant-baseline="middle">${i}</text>\n`; i++; }
+                i = 1;
+                for (let y = margin + step; y < height - margin; y += step) { s += `<text x="${(margin*0.72).toFixed(2)}" y="${y.toFixed(2)}" text-anchor="end" dominant-baseline="middle">${i}</text>\n`; i++; }
+                s += `</g>\n`;
+            }
+
+            if (enableCustomOverlay.checked && customImageDataUrl && customImageLoaded) {
+                const imgAspect = customImageLoaded.width / customImageLoaded.height;
+                const canvasAspect = width / height;
+                let dw, dh, dX, dY;
+                if (canvasAspect > imgAspect) { dw = width; dh = dw / imgAspect; dX = 0; dY = (height - dh) / 2; }
+                else { dh = height; dw = dh * imgAspect; dY = 0; dX = (width - dw) / 2; }
+                s += `<image x="${dX.toFixed(2)}" y="${dY.toFixed(2)}" width="${dw.toFixed(2)}" height="${dh.toFixed(2)}" xlink:href="${customImageDataUrl}" style="mix-blend-mode:${customBlendMode.value}" opacity="${parseInt(customOverlayOpacity.value)/100}"/>\n`;
+            }
+
+            if (showText.checked && textBox) {
+                const cx = textBox.x + textBox.w/2, cy = textBox.y + textBox.h/2;
+                const lh = textBox.mainFontSize * 1.15;
+                const startY = cy - ((textBox.lines.length - 1) * lh) / 2;
+                s += `<g fill="rgba(255,255,255,0.9)" font-family="'Instrument Serif', Georgia, serif" font-style="italic" font-size="${textBox.mainFontSize}" text-anchor="middle" dominant-baseline="middle">\n`;
+                textBox.lines.forEach((line, idx) => { s += `<text x="${cx.toFixed(2)}" y="${(startY + idx*lh).toFixed(2)}">${esc(line)}</text>\n`; });
+                s += `</g>\n`;
+
+                const subFontSize = Math.round(isMobile ? (10*baseScale) : (11*baseScale));
+                const maxParagraphWidth = isMobile ? (width - margin*3.5) : 320*baseScale;
+                const paraLineHeight = subFontSize * 1.5;
+                const pX = isMobile ? (margin*1.8) : (width - maxParagraphWidth - margin*1.5);
+                const pY = isMobile ? (height - margin*4.5) : (height - margin*2.5);
+                ctx.font = `${subFontSize}px 'Inter', sans-serif`;
+                const words = textSub.value.split(' ');
+                let line = '', lines = [];
+                words.forEach((w, n) => {
+                    const test = line + w + ' ';
+                    if (ctx.measureText(test).width > maxParagraphWidth && n > 0) { lines.push(line); line = w + ' '; } else { line = test; }
+                });
+                lines.push(line);
+                s += `<g fill="${effLineColor}" font-family="Inter, sans-serif" font-size="${subFontSize}">\n`;
+                lines.forEach((l, idx) => { s += `<text x="${pX.toFixed(2)}" y="${(pY + idx*paraLineHeight).toFixed(2)}">${esc(l.trim())}</text>\n`; });
+                s += `</g>\n`;
+
+                s += `<g fill="${effLineColor}" opacity="0.65" font-family="Inter, sans-serif" font-size="${Math.round(8*baseScale)}">\n`;
+                if (!isMobile) {
+                    const lx = margin*0.6, ly = margin*2.1;
+                    s += `<text x="0" y="0" transform="translate(${lx.toFixed(2)},${ly.toFixed(2)}) rotate(90)">CUTTING MAT STUDIO PRO // ${esc(presetSelect.value)} ASPECT RATIO</text>\n`;
+                } else {
+                    s += `<text x="${(margin*1.1).toFixed(2)}" y="${(margin*0.65).toFixed(2)}">CUTTING MAT STUDIO // ${esc(presetSelect.value)}</text>\n`;
+                }
+                s += `</g>\n`;
+            }
+
+            s += `</svg>`;
+            return s;
+        }
+
+        btnExportSVG.addEventListener('click', () => {
+            const svgStr = buildSVG();
+            const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `cutting_mat_pro_${presetSelect.value}_${Date.now()}.svg`;
+            link.href = url; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            exportSvgLabel.textContent = '✓ Done';
+            showToast('SVG exported to your downloads');
+            setTimeout(() => exportSvgLabel.textContent = 'SVG', 1600);
+        });
+
+        // ---- Preset save / load as JSON ----
+        function gatherPreset() {
+            return {
+                version: 2, preset: presetSelect.value, style: currentStyle,
+                gridScale: gridScaleRange.value, gridWeight: gridWeightRange.value, borderWeight: borderWeightRange.value, accentWeight: accentWeightRange.value,
+                colorBase: colorBase.value, colorLines: colorLines.value, lineBrightness: lineBrightnessRange.value,
+                showBorder: showBorder.checked, rounding: roundingRange.value,
+                dashedGrid: dashedGrid.checked, showProtractor: showProtractor.checked, showDiagonals: showDiagonals.checked,
+                showRadialSpokes: showRadialSpokes.checked, showNumbers: showNumbers.checked, showMinorTicks: showMinorTicks.checked,
+                showCenterCross: showCenterCross.checked, showRings: showRings.checked,
+                enableCircles: enableCircles.checked, enableBrackets: enableBrackets.checked, enableWedges: enableWedges.checked, enableLabels: enableLabels.checked,
+                cornerConfig: JSON.parse(JSON.stringify(cornerConfig)),
+                textMain: textMain.value, textSub: textSub.value, showText: showText.checked,
+                showSheen: showSheen.checked, sheen: sheenRange.value,
+            };
+        }
+        function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+        function applyPreset(obj) {
+            presetSelect.value = obj.preset || DEFAULTS.preset;
+            const style = obj.style || 'grid';
+            setStyle(style, style === 'grid' ? styleGrid : stylePlus, style === 'grid' ? stylePlus : styleGrid);
+            gridScaleRange.value = obj.gridScale ?? 100; gridScaleVal.textContent = `${gridScaleRange.value}%`;
+            gridWeightRange.value = obj.gridWeight ?? 100; gridWeightVal.textContent = `${gridWeightRange.value}%`;
+            borderWeightRange.value = obj.borderWeight ?? 100; borderWeightVal.textContent = `${borderWeightRange.value}%`;
+            accentWeightRange.value = obj.accentWeight ?? 100; accentWeightVal.textContent = `${accentWeightRange.value}%`;
+            setColorValue(colorBase, obj.colorBase || DEFAULTS.colorBase);
+            setColorValue(colorLines, obj.colorLines || DEFAULTS.colorLines);
+            syncHexFromColor();
+            lineBrightnessRange.value = obj.lineBrightness ?? 0; lineBrightnessVal.textContent = formatBrightness(lineBrightnessRange.value);
+            showBorder.checked = obj.showBorder ?? true;
+            roundingRange.value = obj.rounding ?? 0; roundingVal.textContent = `${roundingRange.value}%`;
+            dashedGrid.checked = !!obj.dashedGrid;
+            showProtractor.checked = obj.showProtractor ?? true;
+            showDiagonals.checked = !!obj.showDiagonals;
+            showRadialSpokes.checked = !!obj.showRadialSpokes;
+            showNumbers.checked = !!obj.showNumbers;
+            showMinorTicks.checked = !!obj.showMinorTicks;
+            showCenterCross.checked = !!obj.showCenterCross;
+            showRings.checked = !!obj.showRings;
+            enableCircles.checked = !!obj.enableCircles;
+            enableBrackets.checked = !!obj.enableBrackets;
+            enableWedges.checked = !!obj.enableWedges;
+            enableLabels.checked = !!obj.enableLabels;
+            if (obj.cornerConfig) Object.keys(cornerConfig).forEach(key => { if (obj.cornerConfig[key]) Object.assign(cornerConfig[key], obj.cornerConfig[key]); });
+            document.querySelectorAll('.corner-picker-wrap').forEach(wrap => {
+                const key = wrap.dataset.key;
+                const enableEl = document.getElementById(`enable${capitalize(key)}`);
+                wrap.classList.toggle('hidden', !(enableEl && enableEl.checked));
+                wrap.querySelectorAll('.corner-btn').forEach(btn => btn.classList.toggle('active', cornerConfig[key][btn.dataset.corner]));
+            });
+            textMain.value = obj.textMain ?? DEFAULTS.textMain;
+            textSub.value = obj.textSub ?? DEFAULTS.textSub;
+            showText.checked = obj.showText ?? true;
+            showSheen.checked = obj.showSheen ?? true;
+            sheenRange.value = obj.sheen ?? 35; sheenVal.textContent = `${sheenRange.value}%`;
+            updateSwatchSelection();
+            forceDraw();
+        }
+        btnSavePreset.addEventListener('click', () => {
+            const data = JSON.stringify(gatherPreset(), null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = `cutting_mat_preset_${Date.now()}.json`;
+            link.href = url; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            showToast('Preset saved as JSON');
+        });
+        btnLoadPreset.addEventListener('click', () => loadPresetInput.click());
+        loadPresetInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try { applyPreset(JSON.parse(ev.target.result)); showToast('Preset loaded'); }
+                catch (err) { showToast('Could not read that preset file'); }
+            };
+            reader.readAsText(file);
+            loadPresetInput.value = '';
+        });
+
+        function resetCornerConfig() {
+            ['circles', 'brackets', 'wedges', 'labels'].forEach(key => { ['tl','tr','bl','br'].forEach(c => cornerConfig[key][c] = true); });
+            document.querySelectorAll('.corner-btn').forEach(btn => btn.classList.add('active'));
+            [enableCircles, enableBrackets, enableWedges, enableLabels].forEach(cb => cb.checked = false);
+            document.querySelectorAll('.corner-picker-wrap').forEach(w => w.classList.add('hidden'));
+        }
+
+        btnReset.addEventListener('click', () => {
+            presetSelect.value = DEFAULTS.preset;
+            setStyle('grid', styleGrid, stylePlus);
+            gridScaleRange.value = DEFAULTS.gridScale; gridScaleVal.textContent = `${DEFAULTS.gridScale}%`;
+            gridWeightRange.value = DEFAULTS.gridWeight; gridWeightVal.textContent = `${DEFAULTS.gridWeight}%`;
+            borderWeightRange.value = DEFAULTS.borderWeight; borderWeightVal.textContent = `${DEFAULTS.borderWeight}%`;
+            accentWeightRange.value = DEFAULTS.accentWeight; accentWeightVal.textContent = `${DEFAULTS.accentWeight}%`;
+            setColorValue(colorBase, DEFAULTS.colorBase); setColorValue(colorLines, DEFAULTS.colorLines);
+            syncHexFromColor();
+            lineBrightnessRange.value = DEFAULTS.lineBrightness; lineBrightnessVal.textContent = formatBrightness(DEFAULTS.lineBrightness);
+            showBorder.checked = DEFAULTS.showBorder;
+            roundingRange.value = DEFAULTS.rounding; roundingVal.textContent = `${DEFAULTS.rounding}%`;
+            dashedGrid.checked = DEFAULTS.dashedGrid;
+            showProtractor.checked = DEFAULTS.showProtractor;
+            showDiagonals.checked = DEFAULTS.showDiagonals;
+            showRadialSpokes.checked = DEFAULTS.showRadialSpokes;
+            showNumbers.checked = DEFAULTS.showNumbers;
+            showMinorTicks.checked = DEFAULTS.showMinorTicks;
+            showCenterCross.checked = DEFAULTS.showCenterCross;
+            showRings.checked = DEFAULTS.showRings;
+            resetCornerConfig();
+            textMain.value = DEFAULTS.textMain;
+            textSub.value = DEFAULTS.textSub;
+            showText.checked = DEFAULTS.showText;
+            showSheen.checked = DEFAULTS.showSheen;
+            sheenRange.value = DEFAULTS.sheen; sheenVal.textContent = `${DEFAULTS.sheen}%`;
+            enableCustomOverlay.checked = false;
+            customOverlayControls.classList.add('hidden');
+            customImageLoaded = null; customImageDataUrl = null;
+            imagePreviewContainer.classList.add('hidden');
+            updateSwatchSelection();
+            forceDraw();
+            showToast('Reset to defaults');
+        });
+
+        btnRandomize.addEventListener('click', () => {
+            const p = COLOR_PRESETS[Math.floor(Math.random() * COLOR_PRESETS.length)];
+            setColorValue(colorBase, p.base); setColorValue(colorLines, p.lines);
+            syncHexFromColor();
+            const style = Math.random() > 0.5 ? 'grid' : 'plus';
+            setStyle(style, style === 'grid' ? styleGrid : stylePlus, style === 'grid' ? stylePlus : styleGrid);
+            gridScaleRange.value = [70, 100, 130, 160][Math.floor(Math.random() * 4)]; gridScaleVal.textContent = `${gridScaleRange.value}%`;
+            gridWeightRange.value = [70, 100, 150, 200][Math.floor(Math.random() * 4)]; gridWeightVal.textContent = `${gridWeightRange.value}%`;
+            accentWeightRange.value = [70, 100, 150, 200][Math.floor(Math.random() * 4)]; accentWeightVal.textContent = `${accentWeightRange.value}%`;
+            dashedGrid.checked = Math.random() > 0.6;
+            showDiagonals.checked = Math.random() > 0.5;
+            showRadialSpokes.checked = Math.random() > 0.7;
+            showNumbers.checked = Math.random() > 0.5;
+            showMinorTicks.checked = Math.random() > 0.6;
+            showCenterCross.checked = Math.random() > 0.6;
+            showRings.checked = Math.random() > 0.6;
+            enableCircles.checked = Math.random() > 0.5;
+            enableBrackets.checked = Math.random() > 0.5;
+            enableWedges.checked = Math.random() > 0.5;
+            enableLabels.checked = Math.random() > 0.6;
+            document.querySelectorAll('.corner-picker-wrap').forEach(wrap => {
+                const key = wrap.dataset.key;
+                const enableEl = document.getElementById(`enable${capitalize(key)}`);
+                wrap.classList.toggle('hidden', !(enableEl && enableEl.checked));
+            });
+            roundingRange.value = Math.random() > 0.5 ? Math.floor(Math.random() * 60) : 0;
+            roundingVal.textContent = `${roundingRange.value}%`;
+            updateSwatchSelection();
+            forceDraw();
+            showToast('Design randomized');
+        });
+
+        window.onload = () => {
+            buildSwatches();
+            syncHexFromColor();
+            updateLiveStatus();
+            drawWallpaper();
+        };
+    </script>
+</body>
+</html>
